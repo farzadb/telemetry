@@ -21,9 +21,9 @@ void (* resetFunc) (void) = 0;
 const char broker[] = "webhost.protospace.ca";
 int        port     = 8883;
 
-#define PM25_TOPIC   "test/air/1/pm25"
-#define TEMP_TOPIC   "test/air/1/temp"
-#define LOG_TOPIC    "test/air/1/log"
+#define PM25_TOPIC   "sensors/air/1/pm25"
+#define TEMP_TOPIC   "sensors/air/1/temp"
+#define LOG_TOPIC    "sensors/air/1/log"
 
 bool firstIgnored = false;
 long failCount = 0;
