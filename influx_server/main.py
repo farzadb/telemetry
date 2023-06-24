@@ -11,6 +11,8 @@ client = InfluxDBClient('localhost', 8086, database='telegraf')
 SENSORS = [
     ('air', 0, 'pm25'),
     ('air', 0, 'temp'),
+    ('air', 1, 'pm25'),
+    ('air', 1, 'temp'),
 ]
 
 TIMEZONE = pytz.timezone('America/Edmonton')
@@ -28,7 +30,8 @@ Sensors
 -------
 
 Air:
-    0: Classroom ceiling PM2.5 particulate and temperature sensor.
+    0: Classroom ceiling PM2.5 particulate in ug/m3 and temperature sensor.
+    1: Wood shop ceiling PM2.5 particulate in ug/m3 and temperature sensor.
 
 
 Routes
@@ -41,10 +44,14 @@ Get the last value recorded for that sensor.
 Current measurements:
     /sensors/air/0/temp
     /sensors/air/0/pm25
+    /sensors/air/1/temp
+    /sensors/air/1/pm25
 
 Examples:
     <a href="https://ps-iot.dns.t0.vc/sensors/air/0/temp">https://ps-iot.dns.t0.vc/sensors/air/0/temp</a>
     <a href="https://ps-iot.dns.t0.vc/sensors/air/0/pm25">https://ps-iot.dns.t0.vc/sensors/air/0/pm25</a>
+    <a href="https://ps-iot.dns.t0.vc/sensors/air/1/temp">https://ps-iot.dns.t0.vc/sensors/air/1/temp</a>
+    <a href="https://ps-iot.dns.t0.vc/sensors/air/1/pm25">https://ps-iot.dns.t0.vc/sensors/air/1/pm25</a>
 
 
 <b>GET /sensors/{kind}/{num}/{measurement}/today</b>
@@ -63,7 +70,7 @@ Get all sensor readings from the specified duration.
 Current durations:
     day (last 24 hours)
     week (last 7 days)
-    month (last 7 days)
+    month (last 30 days)
 
 Examples:
     <a href="https://ps-iot.dns.t0.vc/sensors/air/0/temp/day">https://ps-iot.dns.t0.vc/sensors/air/0/temp/day</a>
@@ -104,26 +111,32 @@ Examples:
     <a href="https://ps-iot.dns.t0.vc/sensors/air/0/pm25/today?window=1&moving_average=100">https://ps-iot.dns.t0.vc/sensors/air/0/pm25/today?window=1&moving_average=100</a>
 </pre>'''
 
-@app.route('/sensors/<string:kind>/<int:num>/<string:measurement>')
-def sensors(kind, num, measurement):
+@app.route('/<string:domain>/<string:kind>/<int:num>/<string:measurement>')
+def sensors(domain, kind, num, measurement):
     if (kind, num, measurement) not in SENSORS:
         abort(404)
 
-    topic = 'sensors/{}/{}/{}'.format(kind, num, measurement)
+    if domain not in ['sensors', 'test']:
+        abort(404)
+
+    topic = '{}/{}/{}/{}'.format(domain, kind, num, measurement)
     q = 'select last(value) as value from mqtt_consumer where "topic" = \'' + topic + '\''
     result = list(client.query(q).get_points())[0]
 
     return result
 
-@app.route('/sensors/<string:kind>/<int:num>/<string:measurement>/<string:lookup>')
-def sensors_history(kind, num, measurement, lookup):
+@app.route('/<string:domain>/<string:kind>/<int:num>/<string:measurement>/<string:lookup>')
+def sensors_history(domain, kind, num, measurement, lookup):
     if (kind, num, measurement) not in SENSORS:
+        abort(404)
+
+    if domain not in ['sensors', 'test']:
         abort(404)
 
     window = request.args.get('window', 15)
     moving_average = request.args.get('moving_average', None)
 
-    topic = 'sensors/{}/{}/{}'.format(kind, num, measurement)
+    topic = '{}/{}/{}/{}'.format(domain, kind, num, measurement)
 
     try:
         parse_date = datetime.strptime(lookup, '%Y-%m-%d')
